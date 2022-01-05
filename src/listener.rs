@@ -1,3 +1,4 @@
+use crate::utils::env;
 use log::*;
 use reqwest::{StatusCode, Url};
 use std::{convert::Infallible, net::SocketAddr};
@@ -43,7 +44,7 @@ pub async fn webhook(
 
     let (stop_token, stop_flag) = AsyncStopToken::new_pair();
 
-    let addr = "127.0.0.1:7878".parse::<SocketAddr>().unwrap();
+    let addr = env("CONGRUITY_WEBHOOK_BIND").parse::<SocketAddr>().unwrap();
     let server = warp::serve(server);
     let (_addr, fut) = server.bind_with_graceful_shutdown(addr, stop_flag);
 

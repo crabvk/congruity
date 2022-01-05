@@ -8,7 +8,7 @@ run:
 
 deploy:
     cargo build
-    rsync -az .env target/debug/congruity $SERVER:~/congruity
+    rsync -az target/debug/congruity $SERVER:~/congruity
 
 db:
     @psql $POSTGRESQL_URL
