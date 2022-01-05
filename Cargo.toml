@@ -1,0 +1,35 @@
+[package]
+name = "congruity"
+version = "0.1.0"
+description = "A Telegram bot for monitoring events on Concordium blockchain."
+license = "Apache-2.0"
+homepage = "https://github.com/crabvk/congruity"
+repository = "https://github.com/crabvk/congruity"
+readme = "README.md"
+keywords = ["concordium", "blockchain", "telegram", "bot"]
+edition = "2018"
+authors = ["Vyacheslav Konovalov <crabvk@protonmail.com>"]
+
+[dependencies]
+teloxide = { version = "0.5", features = ["auto-send", "macros", "redis-storage"] }
+log = "0.4"
+pretty_env_logger = "0.4"
+tokio = { version =  "1.14", features = ["rt-multi-thread", "macros", "parking_lot"] }
+tokio-stream = "0.1.8"
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "postgres", "migrate"] }
+warp = "0.3.2"
+reqwest = "0.11"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tonic = "0.6"
+prost = "0.9"
+http = "0.2"
+derive_more = "0.99"
+futures = "0.3.18"
+base58check = "0.1.0"
+hex = "0.4"
+dotenv = "0.15"
+thiserror = "1.0"
+
+[build-dependencies]
+tonic-build = "0.6"
