@@ -2,7 +2,7 @@
 
 Get notifications about on-chain events.
 
-> Bot is currently running in testnet [@CCDTestnetBot](https://t.me/CCDTestnetBot).
+> Check it out! Bot is currently running in testnet [@CCDTestnetBot](https://t.me/CCDTestnetBot).
 
 ## Installation
 
@@ -20,7 +20,7 @@ cargo build --locked --release
 
 ## Configuration
 
-The bot is configured via dotenv file. See example with descriptions in [.example.env](/.example.env).  
+The bot is configured via dotenv file. See example with option descriptions in [.example.env](/.example.env).  
 When the application starts, `.env` file is loaded from the current directory or any of its parents.
 
 ## TODO
