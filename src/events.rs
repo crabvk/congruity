@@ -84,6 +84,16 @@ pub async fn handle_events(bot: BotType) -> Result<(), sqlx::Error> {
                     }
                 }
             }
+            BlockSummary::SpecialTransactionOutcome(OutcomeKind::BakingRewards {
+                baker_rewards,
+            }) => {
+                for reward in baker_rewards {
+                    if let Some(subscriber_ids) = subscriptions.get(&reward.address.to_string()) {
+                        let msg = format!("Baker reward {} CCD", reward.amount,);
+                        notify_subscribers(&bot, msg, subscriber_ids).await
+                    }
+                }
+            }
             _ => {}
         }
     }

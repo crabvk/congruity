@@ -6,11 +6,13 @@ use sqlx::{postgres::PgRow, PgPool, Row};
 use std::collections::HashMap;
 use std::result::Result;
 
+/// Returns all subscriptions.
+/// For each subscriber account returns a list of Telegram user IDs because many users can be subscribed to one account updates.
 pub async fn all_subscriptions(pool: &PgPool) -> Result<HashMap<String, Vec<i64>>, sqlx::Error> {
     let mut subscriptions = HashMap::new();
 
     let mut rows =
-        sqlx::query("SELECT account, array_agg(user_id) FROM subscriptions GROUP BY account;")
+        sqlx::query("SELECT account, array_agg(user_id) FROM subscriptions GROUP BY account")
             .fetch(pool);
 
     while let Some(row) = rows.try_next().await? {

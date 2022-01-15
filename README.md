@@ -2,7 +2,13 @@
 
 Get notifications about on-chain events.
 
-> Check it out! Bot is currently running in testnet [@CCDTestnetBot](https://t.me/CCDTestnetBot).
+> Bot is currently running in mainnet [@CCDMainnetBot](https://t.me/CCDMainnetBot) and testnet [@CCDTestnetBot](https://t.me/CCDTestnetBot).
+
+## Supported events
+
+* Transfer
+* TransferWithSchedule
+* BakingRewards
 
 ## Installation
 
@@ -25,11 +31,25 @@ When the application starts, `.env` file is loaded from the current directory or
 
 ## TODO
 
+* add bot command to list current subscription addresses
+* recover from crash: query missed events on startup
 * handle crashes in spawned tasks
-* write code comments
+* write more code comments
 * write tests
+
+## Contributions
+
+Contributions are very welcome.  
+Feel free to create an issue if you found a bug, want to request a feature or have a question.
+
+## Sponsoring
+
+Work on this project is done in my free time and takes time and effort.  
+If you find the bot useful and want to help its depelopment please donate some CCD to 49YugmeWQGApKgpzkR7rcefA7KaoujeToXkA8umdCvJ1DFq4RN.
 
 ## Resources
 
 * [Mainnet documentation](https://developer.concordium.software/en/mainnet/net/index.html)
 * [Running a node with finalized transaction logging](https://github.com/Concordium/concordium-node/blob/main/docs/transaction-logging.md)
+* [Transaction execution events](https://github.com/concordium/concordium-base/blob/main/haskell-src/Concordium/Types/Execution.hs)
+* [Special transaction outcomes](https://github.com/concordium/concordium-base/blob/main/haskell-src/Concordium/Types/Transactions.hs)

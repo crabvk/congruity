@@ -39,6 +39,11 @@ impl FromStr for AccountAddress {
 }
 
 impl AccountAddress {
+    #[allow(dead_code)]
+    pub fn new(address: &str) -> Self {
+        Self(String::from(address))
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         let (_, bytes) = self.0.from_base58check().unwrap();
         bytes

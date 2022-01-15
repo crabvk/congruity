@@ -62,8 +62,8 @@ pub struct TransactionOutcome {
     pub outcome: OutcomeStatus,
 }
 
-// Description of events can be found in
-// https://github.com/concordium/concordium-base/blob/main/haskell-src/Concordium/Types/Execution.hs
+/// Transaction execution events.
+/// More info: https://git.io/J9cQA
 #[derive(Deserialize, Debug)]
 #[serde(tag = "tag")]
 pub enum Event {
@@ -133,22 +133,22 @@ pub enum OutcomeStatus {
     Reject,
 }
 
-// Description can be found in
-// https://github.com/concordium/concordium-base/blob/main/haskell-src/Concordium/Types/Transactions.hs
+/// Special transaction outcomes.
+/// More info: https://git.io/J0thA
 #[derive(Deserialize, Debug)]
 #[serde(tag = "tag")]
 pub enum OutcomeKind {
-    BakingRewards,
-    Mint,
     #[serde(rename_all = "camelCase")]
-    FinalizationRewards {
-        finalization_rewards: Vec<AccountAmount>,
+    BakingRewards {
+        baker_rewards: Vec<AddressWithAmount>,
     },
+    Mint,
+    FinalizationRewards,
     BlockReward,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct AccountAmount {
+pub struct AddressWithAmount {
     pub address: String,
     pub amount: Amount,
 }
