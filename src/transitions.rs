@@ -1,9 +1,6 @@
 use super::states::*;
-use crate::command::Command;
-use crate::db;
-use crate::rpc;
 use crate::types::{AccountAddress, Amount};
-use crate::{states::Dialogue, BotType};
+use crate::{command::Command, db, rpc, states::Dialogue, BotType};
 use log::*;
 use teloxide::payloads::SendMessageSetters;
 use teloxide::types::{KeyboardButton, KeyboardMarkup, KeyboardRemove};
@@ -118,6 +115,16 @@ async fn start(
             Command::Subscribe => {
                 cx.answer("OK, send me address of the account").await?;
                 return next(ReceiveAddressState::Subscribe);
+            }
+            Command::Subscriptions => {
+                let user_id = cx.chat_id() as i64;
+                let subscriptions = db::subscriptions(user_id).await.unwrap();
+
+                if subscriptions.len() > 0 {
+                    cx.answer(subscriptions.join("\n")).await?;
+                } else {
+                    cx.answer("No subscriptions were found").await?;
+                }
             }
             Command::Unsubscribe => {
                 let user_id = cx.chat_id() as i64;

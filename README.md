@@ -31,7 +31,6 @@ When the application starts, `.env` file is loaded from the current directory or
 
 ## TODO
 
-* add bot command to list current subscription addresses
 * recover from crash: query missed events on startup
 * handle crashes in spawned tasks
 * write more code comments
