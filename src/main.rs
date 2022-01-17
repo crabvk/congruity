@@ -1,16 +1,17 @@
 mod command;
 mod db;
-mod events;
 mod listener;
 mod repl;
 mod rpc;
 mod states;
 mod transitions;
 mod types;
+mod updates;
 mod utils;
 
 use listener::webhook;
 use log::*;
+use redis::Client;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
 use teloxide::{
@@ -22,6 +23,7 @@ use utils::*;
 type BotType = AutoSend<DefaultParseMode<Bot>>;
 
 static PG_POOL: OnceCell<Pool<Postgres>> = OnceCell::const_new();
+static REDIS: OnceCell<Client> = OnceCell::const_new();
 
 pub async fn pg_pool() -> &'static Pool<Postgres> {
     PG_POOL
@@ -31,6 +33,12 @@ pub async fn pg_pool() -> &'static Pool<Postgres> {
                 .connect_lazy(&env("POSTGRESQL_URL"))
                 .unwrap()
         })
+        .await
+}
+
+pub async fn redis_client() -> &'static Client {
+    REDIS
+        .get_or_init(|| async { Client::open(env("REDIS_URL")).unwrap() })
         .await
 }
 
@@ -49,13 +57,14 @@ async fn run() {
     let token = env("TELEGRAM_TOKEN");
     let bot = Bot::new(&token).parse_mode(ParseMode::Html).auto_send();
 
-    // Update the list of the bot's commands
+    // Update the list of the bot commands
     bot.set_my_commands(command::commands()).await.unwrap();
 
-    let cloned_bot = bot.clone();
+    // Find and process missing account updates
+    updates::process_updates_since_last_ati(&bot, pool).await;
 
-    // Handle on-chain events via PostgreSQL pub/sub channel
-    tokio::spawn(events::handle_events(cloned_bot));
+    // Handle Concordium account updates via PostgreSQL pub/sub channel
+    tokio::spawn(updates::handle_updates(bot.clone()));
 
     if let Some(host) = std::env::var("TELEGRAM_WEBHOOK_HOST").ok() {
         info!("Receiving updates via webhook on host: {}", host);

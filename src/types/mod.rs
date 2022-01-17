@@ -4,8 +4,30 @@ mod amount;
 pub use account_address::AccountAddress;
 pub use amount::Amount;
 
-use account_address::account_address_from_struct;
+use account_address::account_address_hex_or_struct;
+use base58check::ToBase58Check;
 use serde::Deserialize;
+
+#[derive(Deserialize, Debug)]
+pub struct AccountUpdate {
+    pub index_id: i64,
+    #[serde(deserialize_with = "account_address_hex_or_struct")]
+    pub account: AccountAddress,
+    pub summary: BlockSummary,
+}
+
+impl AccountUpdate {
+    pub fn new(index_id: i64, account: &[u8], summary: String) -> Self {
+        let address = account.to_base58check(1);
+        let summary: BlockSummary = serde_json::from_str(&summary).unwrap();
+
+        Self {
+            index_id,
+            account: AccountAddress::new(&address),
+            summary,
+        }
+    }
+}
 
 #[derive(Deserialize, Debug)]
 pub enum BlockSummary {
@@ -71,9 +93,9 @@ pub enum Event {
     ContractInitialized,
     Updated,
     Transferred {
-        #[serde(deserialize_with = "account_address_from_struct")]
+        #[serde(deserialize_with = "account_address_hex_or_struct")]
         from: AccountAddress,
-        #[serde(deserialize_with = "account_address_from_struct")]
+        #[serde(deserialize_with = "account_address_hex_or_struct")]
         to: AccountAddress,
         amount: Amount,
     },

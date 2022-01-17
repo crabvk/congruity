@@ -257,7 +257,7 @@ dependencies = [
 
 [[package]]
 name = "congruity"
-version = "0.1.1"
+version = "0.2.1"
 dependencies = [
  "base58check",
  "derive_more",
@@ -268,6 +268,7 @@ dependencies = [
  "log",
  "pretty_env_logger",
  "prost",
+ "redis 0.21.5",
  "reqwest",
  "serde",
  "serde_json",
@@ -1520,6 +1521,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "redis"
+version = "0.21.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a80b5f38d7f5a020856a0e16e40a9cfabf88ae8f0e4c2dcd8a3114c1e470852"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "combine",
+ "dtoa",
+ "futures-util",
+ "itoa",
+ "percent-encoding",
+ "pin-project-lite",
+ "sha1",
+ "tokio",
+ "tokio-util",
+ "url",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.1.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2028,7 +2049,7 @@ dependencies = [
  "log",
  "mime",
  "pin-project",
- "redis",
+ "redis 0.20.2",
  "serde",
  "serde_json",
  "serde_with_macros",

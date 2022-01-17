@@ -31,7 +31,8 @@ When the application starts, `.env` file is loaded from the current directory or
 
 ## TODO
 
-* recover from crash: query missed events on startup
+* send Telegram messages in a separate task
+* catch Telegram API exceptions
 * handle crashes in spawned tasks
 * write more code comments
 * write tests

@@ -1,4 +1,4 @@
-use base58check::FromBase58Check;
+use base58check::{FromBase58Check, ToBase58Check};
 use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 use std::fmt;
@@ -22,6 +22,12 @@ impl fmt::Display for AccountAddress {
     }
 }
 
+impl PartialEq for AccountAddress {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
 impl FromStr for AccountAddress {
     type Err = ParseAccountAddressError;
 
@@ -39,9 +45,12 @@ impl FromStr for AccountAddress {
 }
 
 impl AccountAddress {
-    #[allow(dead_code)]
     pub fn new(address: &str) -> Self {
         Self(String::from(address))
+    }
+
+    pub fn address(&self) -> &str {
+        &self.0
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -50,7 +59,7 @@ impl AccountAddress {
     }
 }
 
-pub fn account_address_from_struct<'de, D>(deserializer: D) -> Result<AccountAddress, D::Error>
+pub fn account_address_hex_or_struct<'de, D>(deserializer: D) -> Result<AccountAddress, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -67,12 +76,20 @@ where
         type Value = AccountAddress;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("map")
+            formatter.write_str("hex string or map")
         }
 
-        fn visit_map<V>(self, mut map: V) -> Result<AccountAddress, V::Error>
+        fn visit_str<E>(self, value: &str) -> Result<AccountAddress, E>
         where
-            V: MapAccess<'de>,
+            E: de::Error,
+        {
+            let address = hex::decode(&value[2..]).unwrap().to_base58check(1);
+            Ok(AccountAddress(address))
+        }
+
+        fn visit_map<M>(self, mut map: M) -> Result<AccountAddress, M::Error>
+        where
+            M: MapAccess<'de>,
         {
             let mut r#type = None;
             let mut address = None;
