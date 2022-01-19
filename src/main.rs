@@ -3,6 +3,7 @@ mod db;
 mod listener;
 mod repl;
 mod rpc;
+mod sender;
 mod states;
 mod transitions;
 mod types;
@@ -17,7 +18,7 @@ use sqlx::{Pool, Postgres};
 use teloxide::{
     adaptors::DefaultParseMode, dispatching::update_listeners, prelude::*, types::ParseMode,
 };
-use tokio::sync::OnceCell;
+use tokio::sync::{mpsc, OnceCell};
 use utils::*;
 
 type BotType = AutoSend<DefaultParseMode<Bot>>;
@@ -60,14 +61,18 @@ async fn run() {
     // Update the list of the bot commands
     bot.set_my_commands(command::commands()).await.unwrap();
 
+    // Spawn Telegram messages sender
+    let (tx, rx) = mpsc::channel(2048);
+    tokio::spawn(sender::handle_messages(rx, bot.clone()));
+
     // Find and process missing account updates
-    updates::process_updates_since_last_ati(&bot, pool).await;
+    updates::process_updates_since_last_ati(tx.clone(), pool).await;
 
     // Handle Concordium account updates via PostgreSQL pub/sub channel
-    tokio::spawn(updates::handle_updates(bot.clone()));
+    tokio::spawn(updates::handle_updates(tx));
 
     if let Some(host) = std::env::var("TELEGRAM_WEBHOOK_HOST").ok() {
-        info!("Receiving updates via webhook on host: {}", host);
+        info!("Receiving updates via webhook: {}", host);
         let listener = webhook(host, token, &bot).await;
         repl::dialogue_repl(bot, listener).await;
     } else {

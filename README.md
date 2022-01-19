@@ -31,8 +31,6 @@ When the application starts, `.env` file is loaded from the current directory or
 
 ## TODO
 
-* send Telegram messages in a separate task
-* catch Telegram API exceptions
 * handle crashes in spawned tasks
 * write more code comments
 * write tests
@@ -44,8 +42,8 @@ Feel free to create an issue if you found a bug, want to request a feature or ha
 
 ## Sponsoring
 
-Work on this project is done in my free time and takes time and effort.  
-If you find the bot useful and want to help its depelopment please donate some CCD to 49YugmeWQGApKgpzkR7rcefA7KaoujeToXkA8umdCvJ1DFq4RN.
+Work on this project is done in my free time, and takes time and effort. If you find the bot useful and want to help its depelopment please send a donation.  
+CCD wallet address: 49YugmeWQGApKgpzkR7rcefA7KaoujeToXkA8umdCvJ1DFq4RN
 
 ## Resources
 

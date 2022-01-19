@@ -1,16 +1,13 @@
-use crate::{db, pg_pool, redis_client};
-use crate::{types::*, utils::*, BotType};
+use crate::{db, pg_pool, redis_client, sender::Message, types::*, utils::*};
 use log::*;
-use redis::{aio::Connection, AsyncCommands};
+use redis::AsyncCommands;
 use sqlx::{postgres::PgListener, Pool, Postgres};
 use std::collections::HashMap;
-use teloxide::prelude::*;
+use tokio::sync::mpsc::Sender;
 
 const TX_CHANNEL: &str = "tx_channel";
 
-pub async fn handle_updates(bot: BotType) -> Result<(), sqlx::Error> {
-    let mut conn = redis_client().await.get_async_connection().await.unwrap();
-
+pub async fn handle_updates(tx: Sender<Message>) -> Result<(), sqlx::Error> {
     let pool = pg_pool().await;
     let mut listener = PgListener::connect(&env("POSTGRESQL_URL")).await?;
 
@@ -23,12 +20,12 @@ pub async fn handle_updates(bot: BotType) -> Result<(), sqlx::Error> {
         let update: AccountUpdate = serde_json::from_str(json).unwrap();
         debug!("{:?}", update);
         let subscriptions = db::all_subscriptions(pool).await?;
-        handle_update(&bot, &mut conn, update, &subscriptions).await;
+        handle_update(&tx, update, &subscriptions).await;
     }
 }
 
 /// Processes account updates since last handled account transaction index.
-pub async fn process_updates_since_last_ati(bot: &BotType, pool: &Pool<Postgres>) {
+pub async fn process_updates_since_last_ati(tx: Sender<Message>, pool: &Pool<Postgres>) {
     let mut conn = redis_client().await.get_async_connection().await.unwrap();
     let index_id: Option<i64> = conn.get("ati:latest").await.unwrap();
 
@@ -40,7 +37,7 @@ pub async fn process_updates_since_last_ati(bot: &BotType, pool: &Pool<Postgres>
             info!("Processing {} account updates", updates.len());
             let subscriptions = db::all_subscriptions(pool).await.unwrap();
             for update in updates {
-                handle_update(&bot, &mut conn, update, &subscriptions).await;
+                handle_update(&tx, update, &subscriptions).await;
             }
         } else {
             info!("No account updates found");
@@ -51,8 +48,7 @@ pub async fn process_updates_since_last_ati(bot: &BotType, pool: &Pool<Postgres>
 }
 
 async fn handle_update(
-    bot: &BotType,
-    conn: &mut Connection,
+    tx: &Sender<Message>,
     update: AccountUpdate,
     subscriptions: &HashMap<String, Vec<i64>>,
 ) {
@@ -89,8 +85,9 @@ async fn handle_update(
                         cost
                     );
 
-                    notify_subscribers(&bot, msg, subscriber_ids).await;
-                    set_index_id(conn, update.index_id).await;
+                    tx.send(Message::new(update.index_id, subscriber_ids.to_vec(), msg))
+                        .await
+                        .ok();
                 }
             }
             Some(Event::TransferredWithSchedule { from, to, amount }) => {
@@ -105,8 +102,9 @@ async fn handle_update(
                             cost
                         );
 
-                    notify_subscribers(&bot, msg, subscriber_ids).await;
-                    set_index_id(conn, update.index_id).await;
+                    tx.send(Message::new(update.index_id, subscriber_ids.to_vec(), msg))
+                        .await
+                        .ok();
                 }
             }
             _ => {}
@@ -121,8 +119,9 @@ async fn handle_update(
             if let Some(reward) = reward {
                 if let Some(subscriber_ids) = subscriptions.get(&reward.address.to_string()) {
                     let msg = format!("Baker reward {} CCD", reward.amount,);
-                    notify_subscribers(&bot, msg, subscriber_ids).await;
-                    set_index_id(conn, update.index_id).await;
+                    tx.send(Message::new(update.index_id, subscriber_ids.to_vec(), msg))
+                        .await
+                        .ok();
                 }
             }
         }
@@ -136,10 +135,6 @@ fn sender_hyperlink(sender: Option<AccountAddress>) -> String {
     } else {
         String::new()
     }
-}
-
-async fn set_index_id(conn: &mut Connection, index_id: i64) {
-    let _: () = conn.set("ati:latest", index_id).await.unwrap();
 }
 
 fn event_for(events: Vec<Event>, address: &AccountAddress) -> Option<Event> {
@@ -157,10 +152,4 @@ fn event_for(events: Vec<Event>, address: &AccountAddress) -> Option<Event> {
         }
     }
     None
-}
-
-async fn notify_subscribers(bot: &BotType, message: String, subscriber_ids: &Vec<i64>) {
-    for sid in subscriber_ids {
-        bot.send_message(*sid, &message).await.ok();
-    }
 }
