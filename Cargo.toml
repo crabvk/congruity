@@ -30,7 +30,7 @@ base58check = "0.1.0"
 hex = "0.4"
 dotenv = "0.15"
 thiserror = "1.0"
-redis = { version = "0.21", features = ["tokio-comp"] }
+redis = { version = "0.21", features = ["tokio-comp", "connection-manager"] }
 
 [build-dependencies]
 tonic-build = "0.6"

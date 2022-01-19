@@ -1,4 +1,4 @@
-use crate::{redis_client, BotType};
+use crate::{redis_cm, BotType};
 use log::*;
 use redis::AsyncCommands;
 use teloxide::prelude::*;
@@ -22,7 +22,7 @@ impl Message {
 }
 
 pub async fn handle_messages(mut rx: Receiver<Message>, bot: BotType) {
-    let mut conn = redis_client().await.get_async_connection().await.unwrap();
+    let mut conn = redis_cm().await.clone();
 
     while let Some(msg) = rx.recv().await {
         for user_id in msg.user_ids {

@@ -1,4 +1,4 @@
-use crate::{db, pg_pool, redis_client, sender::Message, types::*, utils::*};
+use crate::{db, pg_pool, redis_cm, sender::Message, types::*, utils::*};
 use log::*;
 use redis::AsyncCommands;
 use sqlx::{postgres::PgListener, Pool, Postgres};
@@ -26,7 +26,7 @@ pub async fn handle_updates(tx: Sender<Message>) -> Result<(), sqlx::Error> {
 
 /// Processes account updates since last handled account transaction index.
 pub async fn process_updates_since_last_ati(tx: Sender<Message>, pool: &Pool<Postgres>) {
-    let mut conn = redis_client().await.get_async_connection().await.unwrap();
+    let mut conn = redis_cm().await.clone();
     let index_id: Option<i64> = conn.get("ati:latest").await.unwrap();
 
     if let Some(index_id) = index_id {

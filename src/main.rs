@@ -12,7 +12,7 @@ mod utils;
 
 use listener::webhook;
 use log::*;
-use redis::Client;
+use redis::{aio::ConnectionManager, Client};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
 use teloxide::{
@@ -24,7 +24,7 @@ use utils::*;
 type BotType = AutoSend<DefaultParseMode<Bot>>;
 
 static PG_POOL: OnceCell<Pool<Postgres>> = OnceCell::const_new();
-static REDIS: OnceCell<Client> = OnceCell::const_new();
+static REDIS: OnceCell<ConnectionManager> = OnceCell::const_new();
 
 pub async fn pg_pool() -> &'static Pool<Postgres> {
     PG_POOL
@@ -37,9 +37,15 @@ pub async fn pg_pool() -> &'static Pool<Postgres> {
         .await
 }
 
-pub async fn redis_client() -> &'static Client {
+pub async fn redis_cm() -> &'static ConnectionManager {
     REDIS
-        .get_or_init(|| async { Client::open(env("REDIS_URL")).unwrap() })
+        .get_or_init(|| async {
+            Client::open(env("REDIS_URL"))
+                .unwrap()
+                .get_tokio_connection_manager()
+                .await
+                .expect("Can't create Redis connection manager")
+        })
         .await
 }
 
