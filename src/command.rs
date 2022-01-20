@@ -1,6 +1,6 @@
 use teloxide::utils::command::BotCommand;
 
-#[derive(BotCommand, Debug)]
+#[derive(BotCommand)]
 #[command(rename = "lowercase")]
 pub enum Command {
     #[command(description = "off")]

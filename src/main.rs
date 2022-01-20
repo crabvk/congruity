@@ -32,7 +32,7 @@ pub async fn pg_pool() -> &'static Pool<Postgres> {
             PgPoolOptions::new()
                 .max_connections(16)
                 .connect_lazy(&env("POSTGRESQL_URL"))
-                .unwrap()
+                .expect("Can't create PostgreSQL connection pool")
         })
         .await
 }
@@ -67,18 +67,22 @@ async fn run() {
     // Update the list of the bot commands
     bot.set_my_commands(command::commands()).await.unwrap();
 
+    // Cache subscriptions in Redis
+    info!("Loading subscriptions");
+    db::load_subscriptions(pool).await.unwrap();
+
     // Spawn Telegram messages sender
     let (tx, rx) = mpsc::channel(2048);
     tokio::spawn(sender::handle_messages(rx, bot.clone()));
 
     // Find and process missing account updates
-    updates::process_updates_since_last_ati(tx.clone(), pool).await;
+    updates::process_updates_since_last_ati(tx.clone()).await;
 
     // Handle Concordium account updates via PostgreSQL pub/sub channel
     tokio::spawn(updates::handle_updates(tx));
 
     if let Some(host) = std::env::var("TELEGRAM_WEBHOOK_HOST").ok() {
-        info!("Receiving updates via webhook: {}", host);
+        info!("Receiving updates via webhook on {}", host);
         let listener = webhook(host, token, &bot).await;
         repl::dialogue_repl(bot, listener).await;
     } else {

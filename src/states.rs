@@ -18,7 +18,7 @@ impl Default for Dialogue {
 #[derive(Serialize, Deserialize)]
 pub struct StartState;
 
-#[derive(Serialize, PartialEq, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum ReceiveAddressState {
     Balance,
     Subscribe,

@@ -1,6 +1,6 @@
 [package]
 name = "congruity"
-version = "0.2.2"
+version = "0.3.0"
 description = "A Telegram bot for monitoring events on Concordium blockchain."
 license = "Apache-2.0"
 homepage = "https://github.com/crabvk/congruity"

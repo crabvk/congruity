@@ -13,8 +13,8 @@ async fn subscribe(address: &AccountAddress, cx: TransitionIn<BotType>) -> Respo
     let user_id = cx.chat_id() as i64;
     let result = db::subscribe(user_id, address).await;
     match result {
-        Ok(rows) if rows.len() > 0 => cx.answer("Subscribed successfully").await,
-        Ok(_) => {
+        Ok(true) => cx.answer("Subscribed successfully").await,
+        Ok(false) => {
             cx.answer("You're already subscribed for this address")
                 .await
         }
@@ -30,10 +30,9 @@ async fn answer_after_keyboard(cx: TransitionIn<BotType>, text: &str) -> Respons
 }
 
 async fn unsubscribe_all(cx: TransitionIn<BotType>) -> ResponseResult<Message> {
-    let result = db::unsubscribe(cx.chat_id(), None).await;
-    match result {
-        Ok(rows) if rows.len() > 0 => answer_after_keyboard(cx, "Unsubscribed successfully").await,
-        Ok(_) => answer_after_keyboard(cx, "No subscriptions were found").await,
+    match db::unsubscribe_all(cx.chat_id()).await {
+        Ok(true) => answer_after_keyboard(cx, "Unsubscribed successfully").await,
+        Ok(false) => answer_after_keyboard(cx, "No subscriptions were found").await,
         Err(err) => {
             error!("{}", err);
             answer_after_keyboard(cx, "A database query error has occurred 😐").await
@@ -45,10 +44,9 @@ async fn unsubscribe(
     address: &AccountAddress,
     cx: TransitionIn<BotType>,
 ) -> ResponseResult<Message> {
-    let result = db::unsubscribe(cx.chat_id(), Some(address)).await;
-    match result {
-        Ok(rows) if rows.len() > 0 => answer_after_keyboard(cx, "Unsubscribed successfully").await,
-        Ok(_) => answer_after_keyboard(cx, "You're not subscribed for this address").await,
+    match db::unsubscribe(cx.chat_id(), address).await {
+        Ok(true) => answer_after_keyboard(cx, "Unsubscribed successfully").await,
+        Ok(false) => answer_after_keyboard(cx, "You're not subscribed for this address").await,
         Err(err) => {
             error!("{}", err);
             answer_after_keyboard(cx, "A database query error has occurred 😐").await
@@ -101,8 +99,6 @@ async fn start(
                 return next(state);
             }
         };
-
-        info!("{:?}", command);
 
         match command {
             Command::Start | Command::Help => {
@@ -166,6 +162,7 @@ async fn recieve_balance(
     }
 
     if let Ok(address) = address.parse::<AccountAddress>() {
+        debug!("{:?} {}", state, address);
         match state {
             Balance => {
                 get_account_balance(&address, cx).await?;

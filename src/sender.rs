@@ -27,7 +27,7 @@ pub async fn handle_messages(mut rx: Receiver<Message>, bot: BotType) {
     while let Some(msg) = rx.recv().await {
         for user_id in msg.user_ids {
             match bot.send_message(user_id, &msg.text).await {
-                Ok(_) => debug!("Message sent to Telegram ID={}", user_id),
+                Ok(_) => debug!("Message sent to Telegram ID {}", user_id),
                 Err(err) => error!("{}", err),
             }
         }

@@ -1,14 +1,13 @@
-use crate::{db, pg_pool, redis_cm, sender::Message, types::*, utils::*};
+use crate::{db, redis_cm, sender::Message, types::*, utils::*};
 use log::*;
-use redis::AsyncCommands;
-use sqlx::{postgres::PgListener, Pool, Postgres};
-use std::collections::HashMap;
+use redis::{aio::ConnectionManager, AsyncCommands};
+use sqlx::postgres::PgListener;
 use tokio::sync::mpsc::Sender;
 
 const TX_CHANNEL: &str = "tx_channel";
 
 pub async fn handle_updates(tx: Sender<Message>) -> Result<(), sqlx::Error> {
-    let pool = pg_pool().await;
+    let mut cm = redis_cm().await.clone();
     let mut listener = PgListener::connect(&env("POSTGRESQL_URL")).await?;
 
     info!("Listening channel {}", TX_CHANNEL);
@@ -19,25 +18,23 @@ pub async fn handle_updates(tx: Sender<Message>) -> Result<(), sqlx::Error> {
         let json = n11.payload();
         let update: AccountUpdate = serde_json::from_str(json).unwrap();
         debug!("{:?}", update);
-        let subscriptions = db::all_subscriptions(pool).await?;
-        handle_update(&tx, update, &subscriptions).await;
+        handle_update(&tx, update, &mut cm).await;
     }
 }
 
 /// Processes account updates since last handled account transaction index.
-pub async fn process_updates_since_last_ati(tx: Sender<Message>, pool: &Pool<Postgres>) {
-    let mut conn = redis_cm().await.clone();
-    let index_id: Option<i64> = conn.get("ati:latest").await.unwrap();
+pub async fn process_updates_since_last_ati(tx: Sender<Message>) {
+    let mut cm = redis_cm().await.clone();
+    let index_id: Option<i64> = cm.get("ati:latest").await.unwrap();
 
     if let Some(index_id) = index_id {
-        info!("Last account transaction index ID={}", index_id);
+        info!("Last account transaction index ID {}", index_id);
         let updates = db::account_updates_since(index_id).await.unwrap();
 
         if updates.len() > 0 {
             info!("Processing {} account updates", updates.len());
-            let subscriptions = db::all_subscriptions(pool).await.unwrap();
             for update in updates {
-                handle_update(&tx, update, &subscriptions).await;
+                handle_update(&tx, update, &mut cm).await;
             }
         } else {
             info!("No account updates found");
@@ -47,11 +44,8 @@ pub async fn process_updates_since_last_ati(tx: Sender<Message>, pool: &Pool<Pos
     }
 }
 
-async fn handle_update(
-    tx: &Sender<Message>,
-    update: AccountUpdate,
-    subscriptions: &HashMap<String, Vec<i64>>,
-) {
+/// Handles update for account.
+async fn handle_update(tx: &Sender<Message>, update: AccountUpdate, cm: &mut ConnectionManager) {
     use TransactionType::*;
 
     match update.summary {
@@ -74,7 +68,8 @@ async fn handle_update(
             ..
         } => match event_for(events, &update.account) {
             Some(Event::Transferred { from, to, amount }) => {
-                if let Some(subscriber_ids) = subscriptions.get(&to.to_string()) {
+                if let Some(subscriber_ids) = db::subscriber_ids(cm, &to.to_string()).await.unwrap()
+                {
                     let msg = format!(
                         "Transferred {} CCD from {} to {}\nTx Hash: {}\n{}Cost: {} CCD",
                         amount,
@@ -85,13 +80,14 @@ async fn handle_update(
                         cost
                     );
 
-                    tx.send(Message::new(update.index_id, subscriber_ids.to_vec(), msg))
+                    tx.send(Message::new(update.index_id, subscriber_ids, msg))
                         .await
                         .ok();
                 }
             }
             Some(Event::TransferredWithSchedule { from, to, amount }) => {
-                if let Some(subscriber_ids) = subscriptions.get(&to.to_string()) {
+                if let Some(subscriber_ids) = db::subscriber_ids(cm, &to.to_string()).await.unwrap()
+                {
                     let msg = format!(
                             "Transferred with schedule {} CCD from {} to {}\nTx Hash: {}\n{}Cost: {} CCD",
                             amount.total_amount(),
@@ -117,7 +113,8 @@ async fn handle_update(
                 .find(|r| r.address == update.account.address());
 
             if let Some(reward) = reward {
-                if let Some(subscriber_ids) = subscriptions.get(&reward.address.to_string()) {
+                if let Some(subscriber_ids) = db::subscriber_ids(cm, &reward.address).await.unwrap()
+                {
                     let msg = format!("Baker reward {} CCD", reward.amount,);
                     tx.send(Message::new(update.index_id, subscriber_ids.to_vec(), msg))
                         .await
