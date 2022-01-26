@@ -45,8 +45,8 @@ impl FromStr for AccountAddress {
 }
 
 impl AccountAddress {
-    pub fn new(address: &str) -> Self {
-        Self(String::from(address))
+    pub fn new(address: String) -> Self {
+        Self(address)
     }
 
     pub fn address(&self) -> &str {

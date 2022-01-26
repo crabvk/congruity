@@ -5,7 +5,6 @@ pub use account_address::AccountAddress;
 pub use amount::Amount;
 
 use account_address::account_address_hex_or_struct;
-use base58check::ToBase58Check;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
@@ -14,19 +13,6 @@ pub struct AccountUpdate {
     #[serde(deserialize_with = "account_address_hex_or_struct")]
     pub account: AccountAddress,
     pub summary: BlockSummary,
-}
-
-impl AccountUpdate {
-    pub fn new(index_id: i64, account: &[u8], summary: String) -> Self {
-        let address = account.to_base58check(1);
-        let summary: BlockSummary = serde_json::from_str(&summary).unwrap();
-
-        Self {
-            index_id,
-            account: AccountAddress::new(&address),
-            summary,
-        }
-    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -46,8 +32,7 @@ pub enum BlockSummary {
 }
 
 #[derive(Deserialize, Debug)]
-#[serde(tag = "type", content = "contents")]
-#[serde(rename_all = "camelCase")]
+#[serde(tag = "type", content = "contents", rename_all = "camelCase")]
 pub enum TransactionSummaryType {
     AccountTransaction(TransactionType),
     CredentialDeploymentTransaction,
@@ -79,9 +64,10 @@ pub enum TransactionType {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct TransactionOutcome {
-    pub events: Vec<Event>,
-    pub outcome: OutcomeStatus,
+#[serde(tag = "outcome", rename_all = "camelCase")]
+pub enum TransactionOutcome {
+    Success { events: Vec<Event> },
+    Reject,
 }
 
 /// Transaction execution events.
@@ -146,13 +132,6 @@ pub struct TransferMemo {
 pub struct ContractAddress {
     pub index: u64,
     pub subindex: u64,
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "lowercase")]
-pub enum OutcomeStatus {
-    Success,
-    Reject,
 }
 
 /// Special transaction outcomes.

@@ -16,9 +16,16 @@ pub async fn handle_updates(tx: Sender<Message>) -> Result<(), sqlx::Error> {
     loop {
         let n11 = listener.recv().await?;
         let json = n11.payload();
-        let update: AccountUpdate = serde_json::from_str(json).unwrap();
-        debug!("{:?}", update);
-        handle_update(&tx, update, &mut cm).await;
+
+        match serde_json::from_str(json) {
+            Ok(update) => {
+                debug!("{:?}", update);
+                handle_update(&tx, update, &mut cm).await;
+            }
+            Err(err) => {
+                error!("{}", err);
+            }
+        }
     }
 }
 
@@ -33,8 +40,20 @@ pub async fn process_updates_since_last_ati(tx: Sender<Message>) {
 
         if updates.len() > 0 {
             info!("Processing {} account updates", updates.len());
-            for update in updates {
-                handle_update(&tx, update, &mut cm).await;
+            for (index_id, address, summary) in updates {
+                match serde_json::from_str(&summary) {
+                    Ok(summary) => {
+                        let update = AccountUpdate {
+                            index_id,
+                            account: AccountAddress::new(address),
+                            summary,
+                        };
+                        handle_update(&tx, update, &mut cm).await;
+                    }
+                    Err(err) => {
+                        error!("{}", err);
+                    }
+                }
             }
         } else {
             info!("No account updates found");
@@ -60,11 +79,7 @@ async fn handle_update(tx: &Sender<Message>, update: AccountUpdate, cm: &mut Con
                     | TransferWithSchedule
                     | TransferWithScheduleAndMemo,
                 ),
-            result:
-                TransactionOutcome {
-                    events,
-                    outcome: OutcomeStatus::Success,
-                },
+            result: TransactionOutcome::Success { events },
             ..
         } => match event_for(events, &update.account) {
             Some(Event::Transferred { from, to, amount }) => {

@@ -1,4 +1,4 @@
-use crate::types::{AccountAddress, AccountUpdate};
+use crate::types::AccountAddress;
 use crate::{pg_pool, redis_cm};
 use base58check::ToBase58Check;
 use redis::{aio::ConnectionManager, AsyncCommands, RedisResult};
@@ -116,7 +116,9 @@ pub async fn unsubscribe_all(user_id: i64) -> Result<bool, sqlx::Error> {
 }
 
 /// Returns account updates since account transaction index ID.
-pub async fn account_updates_since(index_id: i64) -> Result<Vec<AccountUpdate>, sqlx::Error> {
+pub async fn account_updates_since(
+    index_id: i64,
+) -> Result<Vec<(i64, String, String)>, sqlx::Error> {
     let pool = pg_pool().await;
 
     let updates = sqlx::query(
@@ -124,10 +126,17 @@ pub async fn account_updates_since(index_id: i64) -> Result<Vec<AccountUpdate>, 
 SELECT ati.id, ati.account, sm.summary::text FROM ati
 JOIN summaries AS sm ON ati.summary = sm.id
 WHERE ati.id > $1 AND ati.account IN (SELECT DISTINCT ON (account) account FROM subscriptions)
+ORDER BY ati.id
         "#,
     )
     .bind(index_id)
-    .map(|row: PgRow| AccountUpdate::new(row.get(0), row.get(1), row.get(2)))
+    .map(|row: PgRow| {
+        (
+            row.get(0),
+            row.get::<&[u8], _>(1).to_base58check(1),
+            row.get(2),
+        )
+    })
     .fetch_all(pool)
     .await?;
 
