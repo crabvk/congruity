@@ -1,4 +1,4 @@
-use crate::types::AccountAddress;
+use crate::types::{AccountAddress, Address};
 use std::fmt;
 
 const MAINNET_DASHBOARD_URL: &str = "http://dashboard.mainnet.concordium.software";
@@ -22,40 +22,62 @@ pub fn is_mainnet() -> bool {
     }
 }
 
-pub enum Emoji {
-    Person,
-    #[allow(dead_code)]
-    Robot,
+enum Emoji {
+    Account,
+    Contract,
 }
 
 impl fmt::Display for Emoji {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let emoji = match self {
-            Emoji::Person => '👤',
-            Emoji::Robot => '🤖',
+            Emoji::Account => '👤',
+            Emoji::Contract => '📝',
         };
         write!(f, "{}", emoji)
     }
 }
 
-pub fn address_to_hyperlink(address: &AccountAddress, emoji: Option<Emoji>) -> String {
-    let addr_str = address.to_string();
-    let addr = if let Some(emoji) = emoji {
-        format!("{}{}", emoji, &addr_str[..8])
-    } else {
-        addr_str[..8].to_string()
-    };
+pub fn format_address(address: &Address) -> String {
+    match address {
+        Address::Account(account) => format_account_address(account, true),
+        Address::Contract(contract) => {
+            format!(
+                "{}&lt;{},{}&gt;",
+                Emoji::Contract,
+                contract.index,
+                contract.subindex
+            )
+        }
+    }
+}
 
+pub fn format_account_address(account: &AccountAddress, with_emoji: bool) -> String {
+    let addr = account.to_string();
     let url = if is_mainnet() {
         MAINNET_API_URL
     } else {
         TESTNET_API_URL
     };
 
-    format!(r#"<a href="{}/accBalance/{}">{}</a>"#, url, address, addr)
+    if with_emoji {
+        format!(
+            r#"<a href="{}/accBalance/{}">{}{}</a>"#,
+            url,
+            addr,
+            Emoji::Account,
+            &addr[..8]
+        )
+    } else {
+        format!(
+            r#"<a href="{}/accBalance/{}">{}</a>"#,
+            url,
+            addr,
+            &addr[..8]
+        )
+    }
 }
 
-pub fn txhash_to_hyperlink(hash: &str) -> String {
+pub fn format_txhash(hash: &str) -> String {
     let url = if is_mainnet() {
         MAINNET_DASHBOARD_URL
     } else {

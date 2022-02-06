@@ -31,6 +31,7 @@ When the application starts, `.env` file is loaded from the current directory or
 
 ## TODO
 
+* add support for EncryptedAmountTransfer
 * limit sending Telegram messages to 30 per second
 * resend Telegram message on error
 * handle crashes in spawned tasks

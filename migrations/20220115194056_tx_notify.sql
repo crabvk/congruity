@@ -10,13 +10,9 @@ BEGIN
             WITH summary AS (
                 SELECT summaries.summary FROM summaries WHERE summaries.id = NEW.summary
             ), payload AS (
-                SELECT json_build_object(
-                    'index_id', NEW.id,
-                    'account', NEW.account,
-                    'summary', summary
-                ) AS payload FROM summary
+                SELECT concat_ws('|', NEW.id, NEW.account, summary) AS payload FROM summary
             )
-            SELECT pg_notify(TG_ARGV[0], payload::text) FROM payload
+            SELECT pg_notify(TG_ARGV[0], payload) FROM payload
         );
     END IF;
 

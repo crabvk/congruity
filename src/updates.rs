@@ -1,4 +1,5 @@
 use crate::{db, redis_cm, sender::Message, types::*, utils::*};
+use base58check::ToBase58Check;
 use log::*;
 use redis::{aio::ConnectionManager, AsyncCommands};
 use sqlx::postgres::PgListener;
@@ -15,15 +16,21 @@ pub async fn handle_updates(tx: Sender<Message>) -> Result<(), sqlx::Error> {
 
     loop {
         let n11 = listener.recv().await?;
-        let json = n11.payload();
+        let (index_id, address, summary) = parse_payload(n11.payload());
 
-        match serde_json::from_str(json) {
-            Ok(update) => {
+        match serde_json::from_str(summary) {
+            Ok(summary) => {
+                let update = AccountUpdate {
+                    index_id,
+                    account: AccountAddress::new(address),
+                    summary,
+                };
                 debug!("{:?}", update);
                 handle_update(&tx, update, &mut cm).await;
             }
             Err(err) => {
                 error!("{}", err);
+                debug!("index_id: {} summary: {}", index_id, summary);
             }
         }
     }
@@ -52,6 +59,7 @@ pub async fn process_updates_since_last_ati(tx: Sender<Message>) {
                     }
                     Err(err) => {
                         error!("{}", err);
+                        debug!("index_id: {} summary: {}", index_id, summary);
                     }
                 }
             }
@@ -77,21 +85,24 @@ async fn handle_update(tx: &Sender<Message>, update: AccountUpdate, cm: &mut Con
                     Transfer
                     | TransferWithMemo
                     | TransferWithSchedule
-                    | TransferWithScheduleAndMemo,
+                    | TransferWithScheduleAndMemo
+                    | Update,
                 ),
             result: TransactionOutcome::Success { events },
             ..
         } => match event_for(events, &update.account) {
             Some(Event::Transferred { from, to, amount }) => {
-                if let Some(subscriber_ids) = db::subscriber_ids(cm, &to.to_string()).await.unwrap()
+                if let Some(subscriber_ids) = db::subscriber_ids(cm, &update.account.to_string())
+                    .await
+                    .unwrap()
                 {
                     let msg = format!(
                         "Transferred {} CCD from {} to {}\nTx Hash: {}\n{}Cost: {} CCD",
                         amount,
-                        address_to_hyperlink(&from, Some(Emoji::Person)),
-                        address_to_hyperlink(&to, Some(Emoji::Person)),
-                        txhash_to_hyperlink(&hash),
-                        sender_hyperlink(sender),
+                        format_address(&from),
+                        format_address(&to),
+                        format_txhash(&hash),
+                        format_sender(sender),
                         cost
                     );
 
@@ -101,15 +112,17 @@ async fn handle_update(tx: &Sender<Message>, update: AccountUpdate, cm: &mut Con
                 }
             }
             Some(Event::TransferredWithSchedule { from, to, amount }) => {
-                if let Some(subscriber_ids) = db::subscriber_ids(cm, &to.to_string()).await.unwrap()
+                if let Some(subscriber_ids) = db::subscriber_ids(cm, &update.account.to_string())
+                    .await
+                    .unwrap()
                 {
                     let msg = format!(
                             "Transferred with schedule {} CCD from {} to {}\nTx Hash: {}\n{}Cost: {} CCD",
                             amount.total_amount(),
-                            address_to_hyperlink(&from, Some(Emoji::Person)),
-                            address_to_hyperlink(&to, Some(Emoji::Person)),
-                            txhash_to_hyperlink(&hash),
-                            sender_hyperlink(sender),
+                            format_address(&from),
+                            format_address(&to),
+                            format_txhash(&hash),
+                            format_sender(sender),
                             cost
                         );
 
@@ -141,9 +154,19 @@ async fn handle_update(tx: &Sender<Message>, update: AccountUpdate, cm: &mut Con
     }
 }
 
-fn sender_hyperlink(sender: Option<AccountAddress>) -> String {
+fn parse_payload(payload: &str) -> (i64, String, &str) {
+    let mut triple = payload.split("|");
+    let index_id: i64 = triple.next().unwrap().parse().unwrap();
+    let address = hex::decode(&triple.next().unwrap()[2..])
+        .unwrap()
+        .to_base58check(1);
+    let summary = triple.next().unwrap();
+    (index_id, address, summary)
+}
+
+fn format_sender(sender: Option<AccountAddress>) -> String {
     if let Some(address) = sender {
-        format!("Sender: {}\n", address_to_hyperlink(&address, None))
+        format!("Sender: {}\n", format_account_address(&address, false))
     } else {
         String::new()
     }
@@ -156,8 +179,10 @@ fn event_for(events: Vec<Event>, address: &AccountAddress) -> Option<Event> {
     while let Some(event) = iter.next() {
         match event {
             Transferred { ref to, .. } | TransferredWithSchedule { ref to, .. } => {
-                if *address == *to {
-                    return Some(event);
+                if let Address::Account(account) = to {
+                    if *address == *account {
+                        return Some(event);
+                    }
                 }
             }
             _ => {}

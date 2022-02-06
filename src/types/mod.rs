@@ -3,14 +3,11 @@ mod amount;
 
 pub use account_address::AccountAddress;
 pub use amount::Amount;
-
-use account_address::account_address_hex_or_struct;
 use serde::Deserialize;
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug)]
 pub struct AccountUpdate {
     pub index_id: i64,
-    #[serde(deserialize_with = "account_address_hex_or_struct")]
     pub account: AccountAddress,
     pub summary: BlockSummary,
 }
@@ -79,10 +76,8 @@ pub enum Event {
     ContractInitialized,
     Updated,
     Transferred {
-        #[serde(deserialize_with = "account_address_hex_or_struct")]
-        from: AccountAddress,
-        #[serde(deserialize_with = "account_address_hex_or_struct")]
-        to: AccountAddress,
+        from: Address,
+        to: Address,
         amount: Amount,
     },
     AccountCreated,
@@ -100,8 +95,8 @@ pub enum Event {
     EncryptedSelfAmountAdded,
     UpdateEnqueued,
     TransferredWithSchedule {
-        from: AccountAddress,
-        to: AccountAddress,
+        from: Address,
+        to: Address,
         amount: AmountWithSchedule,
     },
     CredentialsUpdated,
@@ -132,6 +127,15 @@ pub struct TransferMemo {
 pub struct ContractAddress {
     pub index: u64,
     pub subindex: u64,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(tag = "type", content = "address")]
+pub enum Address {
+    #[serde(rename = "AddressAccount")]
+    Account(AccountAddress),
+    #[serde(rename = "AddressContract")]
+    Contract(ContractAddress),
 }
 
 /// Special transaction outcomes.
