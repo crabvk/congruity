@@ -2,8 +2,6 @@
 
 Get notifications about on-chain events.
 
-> Bot is currently running in mainnet [@CCDMainnetBot](https://t.me/CCDMainnetBot) and testnet [@CCDTestnetBot](https://t.me/CCDTestnetBot).
-
 ## Supported events
 
 * Transfer
@@ -42,11 +40,6 @@ When the application starts, `.env` file is loaded from the current directory or
 
 Contributions are very welcome.  
 Feel free to create an issue if you found a bug, want to request a feature or have a question.
-
-## Sponsoring
-
-Work on this project is done in my free time, and takes time and effort. If you find the bot useful and want to help its depelopment please send a donation.  
-CCD wallet address: 49YugmeWQGApKgpzkR7rcefA7KaoujeToXkA8umdCvJ1DFq4RN
 
 ## Resources
 
